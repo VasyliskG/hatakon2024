@@ -10,13 +10,16 @@ int playerHeight = 40;
 float playerSpeed = 2; // Швидкість персонажа (зменшена)
 
 boolean inClass = false; // Флаг для перевірки, чи в класі
+boolean inCafeteria = false; // Флаг для перевірки, чи в їдальні
 boolean classChoiceMade = false; // Флаг для перевірки, чи був зроблений вибір у класі
-boolean inDormitory = false; // Флаг для перевірки, чи в гуртожитку
-boolean coffeeOffered = false; // Флаг, чи запропоновано каву
+boolean loading = false; // Флаг для інтерфейсу загрузки
+int loadingStartTime; // Час початку загрузки
 
-color dormColor = color(0, 0, 255); // гуртожиток
+color dormColor = color(0, 0, 255); //гуртожиток
 color collegeColor = color(150, 150, 150); // коледж
 color cafeteriaColor = color(255, 255, 0); // їдальня
+
+String[] products = {"Яблуко", "Банан", "Сендвіч"}; // Продукти, що можна купити
 
 void setup() {
   size(1200, 650); 
@@ -27,11 +30,13 @@ void setup() {
 void draw() {
   if (!gameStarted) {
     drawMainScreen();
+  } else if (loading) {
+    drawLoadingScreen();
   } else {
     if (inClass) {
       drawClassScene();  // Якщо в класі, малюємо клас
-    } else if (inDormitory) {
-      drawDormitoryScene();  // Якщо в гуртожитку, малюємо сцену гуртожитку
+    } else if (inCafeteria) {
+      drawCafeteriaScene();
     } else {
       drawGameScene();
     }
@@ -40,17 +45,7 @@ void draw() {
     checkEndOfDay();
   }
 }
- 
- void drawHUD() {
-  fill(0);
-  textSize(16);
-  textAlign(LEFT);
-  text("Енергія: " + energy, 10, 20);
-  text("Увага: " + attention, 10, 40);
-  text("Час: " + (timePassed / 60) + ":" + nf(timePassed % 60, 2), 10, 60);
-}
- 
- 
+
 void drawMainScreen() {
   background(50, 100, 200);
   textAlign(CENTER);
@@ -67,21 +62,15 @@ void keyPressed() {
   }
   
   if (gameStarted) {
-    if (inDormitory) {
-      if (key == '5') { // Вибір кави
-        timePassed += 50; // Витрачається 50 хвилин
-        energy += 10; // Підвищення енергії
-        attention += 5; // Підвищення уваги
-        inDormitory = false; // Повертаємось із гуртожитку
-      } else if (key == '7') { // Вибір піти
-        timePassed += 10; // Витрачається 10 хвилин
-        inDormitory = false; // Повертаємось із гуртожитку
-      }
-    } else if (inClass && !classChoiceMade) {
+    if (inClass && !classChoiceMade) {
       if (key == 'l') { // Вибір залишити клас
         leaveClass();
       } else if (key == 's') { // Вибір слухати вчительку
-        listenToTeacher();
+        startListeningToTeacher();
+      }
+    } else if (inCafeteria) {
+      if (key == 'e') { // Вибір взаємодіяти з продавцем
+        interactWithSeller();
       }
     } else {
       handlePlayerMovement();
@@ -105,14 +94,10 @@ void handlePlayerMovement() {
     continuousRunning = 0; 
   }
 
-  // Вхід в гуртожиток
-  if (playerX > 50 && playerX < 50 + 150 * 2.5 && playerY > height - 150 && playerY < height - 50) {
-    inDormitory = true; // Заходимо в гуртожиток
-  }
-
-  // Вхід в коледж
   if (playerX > 350 && playerX < 350 + 250 * 1.25 && playerY > 120 && playerY < 120 + 200 * 1.25) {
     enterClass();
+  } else if (playerX > 600 && playerX < 600 + 200 && playerY > 200 - 75 && playerY < 200 + 125) {
+    enterCafeteria();
   }
 }
 
@@ -161,19 +146,36 @@ void drawClassScene() {
   text("Натисніть 'L', щоб піти геть або 'S', щоб слухати", width / 2, height / 2 + 20);
 }
 
-void drawDormitoryScene() {
+void drawCafeteriaScene() {
   background(200);
-  fill(255, 255, 0);
+  fill(cafeteriaColor);
+  rect(0, 0, width, height);
+
+  fill(255, 220, 150); // Продавець
+  ellipse(600, 300, 40, 40);
+  fill(0, 0, 0);
+  rect(580, 320, 40, 60);
+
+  fill(0);
   textAlign(CENTER);
   textSize(32);
-  text("Ви в гуртожитку!", width / 2, height / 2 - 100);
+  text("Ви в їдальні!", width / 2, height / 2 - 100);
 
   textSize(20);
-  text("Ого, давно не бачились, поп'ємо кави?", width / 2, height / 2);
-  
-  textSize(16);
-  text("Натисніть '5', щоб піти на каву (50 хвилин)", width / 2, height / 2 + 40);
-  text("Натисніть '7', щоб піти з гуртожитку (10 хвилин)", width / 2, height / 2 + 60);
+  text("Натисніть 'E', щоб взаємодіяти з продавцем", width / 2, height / 2 + 20);
+}
+
+void drawLoadingScreen() {
+  background(0);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Загрузка...", width / 2, height / 2);
+
+  if (millis() - loadingStartTime >= 10000) { // 10 секунд пройшло
+    loading = false;
+    listenToTeacher();
+  }
 }
 
 void drawDormitory() {
@@ -211,40 +213,85 @@ void drawCollege() {
   rect(400, 200, 40, 40);
   rect(500, 200, 40, 40);
 
-  fill(255, 255, 255);
+  fill(100, 50, 0);
+  rect(450, 250, 60, 50);
+
+  fill(0);
   textSize(18);
   textAlign(CENTER);
-  text("Коледж", 500, 120);
+  text("Коледж", 475 + 250 * 0.625, 270);
 }
 
 void drawCafeteria() {
   fill(cafeteriaColor);
-  rect(800, 350, 150 * 2, 150);
+  rect(600 + 100, 200 - 75, 200, 200);
 
-  fill(0);
-  textAlign(CENTER);
+  fill(100, 50, 0);
+  triangle(600 + 100, 200 - 75, 600 + 100 + 200, 200 - 75, 600 + 100 + 100, 200 - 75 - 30);
+
+  fill(255);
+  rect(650 + 100, 230 - 75, 40, 40);
+  rect(750 + 100, 230 - 75, 40, 40);
+  rect(650 + 100, 300 - 75, 40, 40);
+  rect(750 + 100, 300 - 75, 40, 40);
+
+  fill(100, 50, 0);
+  rect(700 + 100, 350 - 75, 60, 50);
+
+  fill(0, 0, 255);
   textSize(18);
-  text("Їдальня", 875 + 150, 350 + 10);
+  textAlign(CENTER);
+  text("Їдальня", 700 + 100, 370 - 75);
 }
 
 void drawPlayer() {
-  fill(0, 128, 0);
-  rect(playerX, playerY, playerWidth, playerHeight);
+  fill(255, 220, 150);
+  ellipse(playerX, playerY - playerHeight / 2, playerWidth, playerWidth);
+  fill(0, 0, 255);
+  rect(playerX - playerWidth / 2, playerY - playerHeight / 2, playerWidth, playerHeight);
+}
+
+void drawHUD() {
+  fill(0);
+  textSize(16);
+  textAlign(LEFT);
+  text("Енергія: " + energy, 10, 20);
+  text("Увага: " + attention, 10, 40);
+  text("Час: " + (timePassed / 60) + ":" + nf(timePassed % 60, 2), 10, 60);
 }
 
 void updateResources() {
-  if (timePassed <= 0) {
-    timePassed = 0;
+  if (frameCount % 60 == 0) {
+    timePassed++;
+
+    if (timePassed % 10 == 0) {
+      attention = max(attention - 1, 0);
+      energy = max(energy - 2, 0);
+    }
+
+    if (continuousRunning >= 15) {
+      energy = max(energy - 0.1, 0);
+      attention = max(attention - 0.035, 0);
+      continuousRunning = 0;
+    }
   }
 }
 
 void checkEndOfDay() {
-  if (timePassed >= 960) { // 16:00
-    gameStarted = false;
-    textSize(32);
-    fill(255, 0, 0);
-    text("День закінчено!", width / 2, height / 2);
+  if (timePassed >= 1200) { 
+    gameStarted = false; 
+    drawEndScreen();
   }
+}
+
+void drawEndScreen() {
+  background(0, 100, 200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("День завершено!", width / 2, height / 2 - 20);
+  textSize(16);
+  text("Дякуємо за гру!", width / 2, height / 2 + 20);
 }
 
 void enterClass() {
@@ -252,13 +299,37 @@ void enterClass() {
   classChoiceMade = false;
 }
 
-void listenToTeacher() {
-  attention += 20;
-  timePassed += 20;
+void leaveClass() {
   inClass = false;
+  timePassed += 60;
+  classChoiceMade = true;
+  playerX = 50;
+  playerY = height - 150;
 }
 
-void leaveClass() {
-  timePassed += 20;
+void startListeningToTeacher() {
+  loading = true;
+  loadingStartTime = millis();
+}
+
+void listenToTeacher() {
   inClass = false;
+  timePassed += 300;
+  classChoiceMade = true;
+  playerX = 50;
+  playerY = height - 150;
+}
+
+void enterCafeteria() {
+  inCafeteria = true;
+}
+
+void interactWithSeller() {
+  fill(255);
+  textAlign(CENTER);
+  textSize(20);
+  text("Продукти:", width / 2, height / 2 - 50);
+  for (int i = 0; i < products.length; i++) {
+    text(products[i], width / 2, height / 2 - 20 + i * 30);
+  }
 }
