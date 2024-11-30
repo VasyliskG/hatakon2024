@@ -10,10 +10,11 @@ int playerHeight = 40;
 float playerSpeed = 2; // Швидкість персонажа (зменшена)
 
 boolean inClass = false; // Флаг для перевірки, чи в класі
+boolean classChoiceMade = false; // Флаг для перевірки, чи був зроблений вибір у класі
 boolean inDormitory = false; // Флаг для перевірки, чи в гуртожитку
-boolean inCoffeeChoice = false; // Флаг для перевірки, чи вибираєш каву
+boolean coffeeOffered = false; // Флаг, чи запропоновано каву
 
-color dormColor = color(0, 0, 255); //гуртожиток
+color dormColor = color(0, 0, 255); // гуртожиток
 color collegeColor = color(150, 150, 150); // коледж
 color cafeteriaColor = color(255, 255, 0); // їдальня
 
@@ -30,9 +31,7 @@ void draw() {
     if (inClass) {
       drawClassScene();  // Якщо в класі, малюємо клас
     } else if (inDormitory) {
-      drawDormitoryScene();
-    } else if (inCoffeeChoice) {
-      drawCoffeeChoice();
+      drawDormitoryScene();  // Якщо в гуртожитку, малюємо сцену гуртожитку
     } else {
       drawGameScene();
     }
@@ -41,7 +40,17 @@ void draw() {
     checkEndOfDay();
   }
 }
-
+ 
+ void drawHUD() {
+  fill(0);
+  textSize(16);
+  textAlign(LEFT);
+  text("Енергія: " + energy, 10, 20);
+  text("Увага: " + attention, 10, 40);
+  text("Час: " + (timePassed / 60) + ":" + nf(timePassed % 60, 2), 10, 60);
+}
+ 
+ 
 void drawMainScreen() {
   background(50, 100, 200);
   textAlign(CENTER);
@@ -58,8 +67,22 @@ void keyPressed() {
   }
   
   if (gameStarted) {
-    if (inCoffeeChoice) {
-      handleCoffeeChoice();
+    if (inDormitory) {
+      if (key == '5') { // Вибір кави
+        timePassed += 50; // Витрачається 50 хвилин
+        energy += 10; // Підвищення енергії
+        attention += 5; // Підвищення уваги
+        inDormitory = false; // Повертаємось із гуртожитку
+      } else if (key == '7') { // Вибір піти
+        timePassed += 10; // Витрачається 10 хвилин
+        inDormitory = false; // Повертаємось із гуртожитку
+      }
+    } else if (inClass && !classChoiceMade) {
+      if (key == 'l') { // Вибір залишити клас
+        leaveClass();
+      } else if (key == 's') { // Вибір слухати вчительку
+        listenToTeacher();
+      }
     } else {
       handlePlayerMovement();
     }
@@ -82,9 +105,13 @@ void handlePlayerMovement() {
     continuousRunning = 0; 
   }
 
-  if (playerX > 50 && playerX < 50 + 150 * 2.5 && playerY > height - 150 && playerY < height) {
-    enterDormitory();
-  } else if (playerX > 350 && playerX < 350 + 250 * 1.25 && playerY > 120 && playerY < 120 + 200 * 1.25) {
+  // Вхід в гуртожиток
+  if (playerX > 50 && playerX < 50 + 150 * 2.5 && playerY > height - 150 && playerY < height - 50) {
+    inDormitory = true; // Заходимо в гуртожиток
+  }
+
+  // Вхід в коледж
+  if (playerX > 350 && playerX < 350 + 250 * 1.25 && playerY > 120 && playerY < 120 + 200 * 1.25) {
     enterClass();
   }
 }
@@ -101,47 +128,70 @@ void drawClassScene() {
   background(200);
   fill(255, 100, 100);
   rect(0, 0, width, height);
+
+  fill(173, 216, 230);
+  for (int i = 0; i < 3; i++) {
+    rect(100 + i * 250, 50, 200, 100);
+  }
+
+  fill(0, 128, 0);
+  rect(width / 4, 200, width / 2, 100);
+
+  fill(255, 220, 150);
+  ellipse(width / 2, 150, 40, 40);
+  fill(0, 0, 0);
+  rect(width / 2 - 20, 170, 40, 60);
+
+  fill(139, 69, 19);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 4; j++) {
+      rect(150 + j * 200, 350 + i * 100, 150, 50);
+    }
+  }
+
   fill(0);
   textAlign(CENTER);
   textSize(32);
-  text("Ви в класі!", width / 2, height / 2);
+  text("Ви в класі!", width / 2, height / 2 - 100);
+
+  textSize(20);
+  text("Вчителька: ...........", width / 2, height / 2 - 50);
+
+  textSize(16);
+  text("Натисніть 'L', щоб піти геть або 'S', щоб слухати", width / 2, height / 2 + 20);
 }
 
 void drawDormitoryScene() {
   background(200);
-  fill(dormColor);
-  rect(0, 0, width, height);
-
-  fill(255, 220, 150); // Друг
-  ellipse(width / 2, height / 2 - 100, 40, 40);
-  fill(0, 0, 0);
-  rect(width / 2 - 20, height / 2 - 60, 40, 60);
-
-  fill(0);
+  fill(255, 255, 0);
   textAlign(CENTER);
   textSize(32);
-  text("Ого давно не бачились, поп'ємо кави", width / 2, height / 2 + 20);
-  textSize(20);
-  text("Натисніть '5', щоб випити каву (50 хв)", width / 2, height / 2 + 60);
-  text("Натисніть '7', щоб піти з гуртожитку (10 хв)", width / 2, height / 2 + 90);
-}
+  text("Ви в гуртожитку!", width / 2, height / 2 - 100);
 
-void drawCoffeeChoice() {
-  // This function will be called during the coffee choice interaction
+  textSize(20);
+  text("Ого, давно не бачились, поп'ємо кави?", width / 2, height / 2);
+  
+  textSize(16);
+  text("Натисніть '5', щоб піти на каву (50 хвилин)", width / 2, height / 2 + 40);
+  text("Натисніть '7', щоб піти з гуртожитку (10 хвилин)", width / 2, height / 2 + 60);
 }
 
 void drawDormitory() {
   fill(dormColor);
   rect(50, height - 150, 150 * 2.5, 150 * 1.5);
+
   fill(100, 50, 0);
   triangle(50, height - 150, 50 + 150 * 2.5, height - 150, 50 + 150 * 1.25, height - 150 - 30);
+
   fill(255);
   rect(80, height - 130, 30, 30);
   rect(120, height - 130, 30, 30);
   rect(80, height - 90, 30, 30);
   rect(120, height - 90, 30, 30);
+
   fill(100, 50, 0);
   rect(100, height - 50, 30, 50);
+
   fill(255, 255, 255);
   textSize(18);
   textAlign(CENTER);
@@ -151,103 +201,64 @@ void drawDormitory() {
 void drawCollege() {
   fill(collegeColor);
   rect(350, 120, 250 * 1.25, 200 * 1.25);
+
   fill(100, 50, 0);
   triangle(350, 120, 350 + 250 * 1.25, 120, 350 + 250 * 0.625, 120 - 30);
+
   fill(255);
   rect(400, 150, 40, 40);
   rect(500, 150, 40, 40);
   rect(400, 200, 40, 40);
   rect(500, 200, 40, 40);
-  fill(100, 50, 0);
-  rect(450, 250, 60, 50);
-  fill(0);
+
+  fill(255, 255, 255);
   textSize(18);
   textAlign(CENTER);
-  text("Коледж", 475 + 250 * 0.625, 270);
+  text("Коледж", 500, 120);
 }
 
 void drawCafeteria() {
   fill(cafeteriaColor);
-  rect(600 + 100, 200 - 75, 200, 200);
-  fill(100, 50, 0);
-  triangle(600 + 100, 200 - 75, 600 + 100 + 200, 200 - 75, 600 + 100 + 100, 200 - 75 - 30);
-  fill(255);
-  rect(650 + 100, 230 - 75, 40, 40);
-  rect(750 + 100, 230 - 75, 40, 40);
-  rect(650 + 100, 300 - 75, 40, 40);
-  rect(750 + 100, 300 - 75, 40, 40);
-  fill(100, 50, 0);
-  rect(700 + 100, 350 - 75, 60, 50);
-  fill(0, 0, 255);
-  textSize(18);
+  rect(800, 350, 150 * 2, 150);
+
+  fill(0);
   textAlign(CENTER);
-  text("Їдальня", 700 + 100, 370 - 75);
+  textSize(18);
+  text("Їдальня", 875 + 150, 350 + 10);
 }
 
 void drawPlayer() {
-  fill(255, 220, 150); // Голова
-  ellipse(playerX, playerY - playerHeight / 2, playerWidth, playerWidth);
-  fill(0, 0, 255); // Тіло
-  rect(playerX - playerWidth / 2, playerY - playerHeight / 2, playerWidth, playerHeight);
-}
-
-void drawHUD() {
-  fill(0);
-  textSize(16);
-  textAlign(LEFT);
-  text("Енергія: " + energy, 10, 20);
-  text("Увага: " + attention, 10, 40);
-  text("Час: " + (timePassed / 60) + ":" + nf(timePassed % 60, 2), 10, 60);
+  fill(0, 128, 0);
+  rect(playerX, playerY, playerWidth, playerHeight);
 }
 
 void updateResources() {
-  if (frameCount % 60 == 0) {
-    timePassed++;
-    if (timePassed % 10 == 0) {
-      attention = max(attention - 1, 0);
-      energy = max(energy - 2, 0);
-    }
-    if (continuousRunning >= 15) {
-      energy = max(energy - 0.1, 0);
-      attention = max(attention - 0.035, 0);
-      continuousRunning = 0;
-    }
+  if (timePassed <= 0) {
+    timePassed = 0;
   }
 }
 
 void checkEndOfDay() {
-  if (timePassed >= 1200) { 
-    gameStarted = false; 
-    drawEndScreen();
+  if (timePassed >= 960) { // 16:00
+    gameStarted = false;
+    textSize(32);
+    fill(255, 0, 0);
+    text("День закінчено!", width / 2, height / 2);
   }
-}
-
-void drawEndScreen() {
-  background(0, 100, 200);
-  fill(255);
-  textAlign(CENTER);
-  textSize(32);
-  text("День завершено!", width / 2, height / 2 - 20);
-  textSize(16);
-  text("Дякуємо за гру!", width / 2, height / 2 + 20);
 }
 
 void enterClass() {
   inClass = true;
+  classChoiceMade = false;
 }
 
-void enterDormitory() {
-  inDormitory = true;
+void listenToTeacher() {
+  attention += 20;
+  timePassed += 20;
+  inClass = false;
 }
 
-void handleCoffeeChoice() {
-  if (key == '5') {
-    timePassed += 50;
-    inCoffeeChoice = false;
-    inDormitory = false;
-  } else if (key == '7') {
-    timePassed += 10;
-    inCoffeeChoice = false;
-    inDormitory = false;
-  }
+void leaveClass() {
+  timePassed += 20;
+  inClass = false;
 }
