@@ -1,1 +1,674 @@
+boolean gameStarted = false; 
+int energy = 100;
+int timePassed = 480;
+int continuousRunning = 0;
 
+int playerX, playerY;
+int playerWidth = 20;
+int playerHeight = 40;
+float playerSpeed = 2;
+
+boolean inClass = false;
+boolean inDormitory = false;
+boolean inCafeteria = false;
+boolean classChoiceMade = false;
+boolean buyingProduct = false;
+boolean loading = false;
+boolean inInfoScene = false;
+boolean gameOver = false;
+boolean inDialogueScene = false;
+boolean voluntaryGameOver = false;
+int dialogueStep = 0;
+int loadingStartTime;
+
+boolean atSpecialLocation = false;
+boolean atDecisionScene = false;
+boolean atRiverScene = false;
+int riverSceneStartTime;
+
+void setup() {
+  size(1200, 650); 
+  playerX = 600;
+  playerY = 600;
+}
+
+void draw() {
+  if (gameOver) {
+    drawGameOverScreen();
+  } else if (atRiverScene) {
+    drawRiverScene();
+  } else if (atDecisionScene) {
+    drawDecisionScene();
+  } else if (!gameStarted) {
+    drawMainScreen();
+  } else if (loading) {
+    drawLoadingScreen();
+  } else if (inInfoScene) {
+    drawInfoScene();
+  } else {
+    updateGameScene();
+  }
+}
+
+void keyPressed() {
+  if (!gameStarted && key == 'r') {
+    gameStarted = true;
+  }
+  if (gameStarted) {
+    if (atDecisionScene) {
+      if (key == 'y') {
+        atDecisionScene = false;
+        atRiverScene = true;
+        riverSceneStartTime = millis();
+      } else if (key == 'n') {
+        atDecisionScene = false;
+        playerX = 600;
+        playerY = 300;
+      }
+    } else if (key == 'f') {
+      inInfoScene = !inInfoScene;
+    } else {
+      handleKeyInput();
+    }
+  }
+}
+
+void handleKeyInput() {
+  if (inDialogueScene) {
+    handleDialogueInput();
+  } else if (inDormitory) {
+    handleDormitoryInput();
+  } else if (inClass && !classChoiceMade) {
+    handleClassInput();
+  } else if (inCafeteria) {
+    handleCafeteriaInput();
+  } else {
+    handlePlayerMovement();
+  }
+}
+
+void handleDialogueInput() {
+  switch (dialogueStep) {
+    case 1:
+      if (key == '1') {
+        dialogueStep = 2;
+      } else if (key == '2') {
+        dialogueStep = 3;
+      }
+      break;
+    case 2:
+    case 4:
+    case 5:
+      inDialogueScene = false;
+      dialogueStep = 0;
+      break;
+    case 3:
+      if (key == '1') {
+        dialogueStep = 4;
+      } else if (key == '2') {
+        dialogueStep = 5;
+      }
+      break;
+  }
+}
+
+void handleDormitoryInput() {
+  switch (key) {
+    case '5':
+      timePassed += 50;
+      energy += 10;
+      inDormitory = false;
+      break;
+    case '7':
+      timePassed += 10;
+      inDormitory = false;
+      break;
+  }
+}
+
+void handleClassInput() {
+  switch (key) {
+    case 'l':
+      leaveClass();
+      break;
+    case 's':
+      startListeningToTeacher();
+      break;
+    case '1':
+      inDialogueScene = true;
+      dialogueStep = 1;
+      break;
+  }
+}
+
+void handleCafeteriaInput() {
+  if (buyingProduct) {
+    buyProduct();
+  } else {
+    switch (key) {
+      case 'e':
+        buyingProduct = true;
+        break;
+      case 'l':
+        inCafeteria = false;
+        break;
+    }
+  }
+}
+
+void buyProduct() {
+  switch (key) {
+    case '1':
+      timePassed += 60;
+      break;
+    case '2':
+      timePassed += 30;
+      break;
+    case '3':
+      timePassed += 120;
+      break;
+  }
+  buyingProduct = false;
+}
+
+void handlePlayerMovement() {
+  boolean moved = false;
+  if (key == 'w') { playerY -= 5 * playerSpeed; moved = true; }
+  if (key == 's') { playerY += 5 * playerSpeed; moved = true; }
+  if (key == 'a') { playerX -= 5 * playerSpeed; moved = true; }
+  if (key == 'd') { playerX += 5 * playerSpeed; moved = true; }
+
+  playerX = constrain(playerX, 0, width - playerWidth);
+  playerY = constrain(playerY, 0, height - playerHeight);
+
+  if (moved) {
+    continuousRunning++;
+  } else {
+    continuousRunning = 0; 
+  }
+
+  checkLocations();
+}
+
+void checkLocations() {
+  if (playerX > 600 && playerX < 650 && playerY > 100 && playerY < 170) {
+    atSpecialLocation = true;
+    atDecisionScene = true;
+  } else if (playerX > 100 && playerX < 130 && playerY > height - 375 && playerY < height - 325) {
+    inDormitory = true;
+  } else if (playerX > 850 && playerX < 925 && playerY > 300 && playerY < 350) {
+    enterClass();
+  } else if (playerX > 830 && playerX < 860 && playerY > 600 && playerY < 650) {
+    enterCafeteria();
+  }
+}
+
+void updateGameScene() {
+  if (inClass) {
+    drawClassScene();
+  } else if (inDormitory) {
+    drawDormitoryScene();
+  } else if (inCafeteria) {
+    if (buyingProduct) {
+      drawProductChoice();
+    } else {
+      drawCafeteriaScene();
+    }
+  } else {
+    drawGameScene();
+  }
+  drawHUD();
+  updateResources();
+  checkEndOfDay();
+}
+
+void drawGameOverScreen() {
+  background(0, 0, 0);
+  fill(255, 0, 0);
+  textAlign(CENTER);
+  textSize(32);
+  if (voluntaryGameOver) {
+    text("Ви прогуляли сьогоднішні пари", width / 2, height / 2);
+  } else {
+    text("Гра завершена через низький рівень енергії!", width / 2, height / 2);
+  }
+  textSize(16);
+  text("Щоб почати знову перезайдіть", width / 2, height / 2 + 40);
+}
+
+void drawDecisionScene() {
+  background(50, 100, 200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви хочете піти до річки і прогуляти уроки?", width / 2, height / 2 - 60);
+  textSize(16);
+  text("Натисніть 'Y', щоб піти до річки", width / 2, height / 2);
+  text("Натисніть 'N', щоб залишитися", width / 2, height / 2 + 40);
+}
+
+void drawMainScreen() {
+  background(50, 100, 200);
+  textAlign(CENTER);
+  fill(255);
+  textSize(32);
+  text("Студентська мурашина ферма", width / 2, height / 2 - 60);
+  textSize(16);
+  text("Натисніть 'R', щоб почати день", width / 2, height / 2 - 20);
+  textAlign(LEFT);
+  textSize(14);
+  text("Інструкція для гравця:", width / 2 - 200, height / 2 + 40);
+  text("1. Клавіші W, A, S, D - пересування персонажа.", width / 2 - 200, height / 2 + 60);
+  text("2. Завдання:", width / 2 - 200, height / 2 + 80);
+  text("   - Йдіть до коледжу для навчання.", width / 2 - 200, height / 2 + 100);
+  text("   - Відвідайте їдальню, щоб поповнити енергію.", width / 2 - 200, height / 2 + 120);
+  text("   - Зайдіть у гуртожиток, щоб поспілкуватися з друзями.", width / 2 - 200, height / 2 + 140);
+  text("3. Уважно слідкуйте за часом, енергією та увагою!", width / 2 - 200, height / 2 + 160);
+}
+
+void drawLoadingScreen() {
+  background(0);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви слухаєте довгі та нудні пари...", width / 2, height / 2);
+  if (millis() - loadingStartTime >= 10000) {
+    loading = false;
+    listenToTeacher();
+  }
+}
+
+void drawGameScene() {
+  background(200);
+  drawDormitory();
+  drawCollege();
+  drawCafeteria();
+  drawInfoTable();
+  drawPlayer();
+  drawBenches();
+  drawTrees();
+}
+
+void drawTrees() {
+  drawTree(450, 150);
+  drawTree(490, 180);
+  drawTree(520, 120);
+  drawTree(580, 170);
+  drawTree(600, 210);
+  drawTree(630, 110);
+  drawTree(660, 160);
+  drawTree(640, 240);
+  drawTree(600, 280);
+  drawTree(685, 300);
+  drawTree(490, 280);
+  drawTree(520, 320);
+  drawTree(50, 450);
+  drawTree(100, 500);
+  drawTree(150, 550);
+  drawTree(200, 450);
+  drawTree(250, 500);
+  drawTree(300, 550);
+  drawTree(350, 450);
+  drawTree(400, 500);
+}
+
+void drawTree(float x, float y) {
+  fill(139, 69, 19);
+  rect(x - 5, y, 10, 40);
+  fill(34, 139, 34);
+  ellipse(x, y - 15, 40, 40);
+}
+
+void drawInfoTable() {
+  textSize(16);
+  textAlign(LEFT, TOP);
+  fill(255, 0, 0);
+  text("Натисніть 'F' для деталей", 15, 605);
+}
+
+void drawRiverScene() {
+  background(100, 200, 255);
+  fill(34, 139, 34);
+  rect(0, height - 150, width, 150);
+  fill(0, 0, 255);
+  rect(0, height - 100, width, 50);
+  fill(255, 255, 0);
+  ellipse(width - 100, 100, 80, 80);
+  fill(0);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви гуляєте біля річки...", width / 2, height / 2);
+  
+  if (millis() - riverSceneStartTime >= 10000) {
+    gameOver = true;
+    voluntaryGameOver = true;
+  }
+}
+
+void drawInfoScene() {
+  background(50, 100, 200);
+  textAlign(CENTER);
+  fill(255);
+  textSize(32);
+  text("Детальна інформація", width / 2, height / 2 - 60);
+  textSize(16);
+  textAlign(LEFT, TOP);
+  fill(255);
+  text("1. Йдіть у коледж для навчання.", 50, height / 2 - 20);
+  text("2. Щоб поповнити енергію, поїште в їдальні.", 50, height / 2);
+  text("3. Щоб відпочити та поговорити з друзякою, зайдіть у гуртожиток.", 50, height / 2 + 20);
+  text("4. Всі ваші дії збільшують час при досягнені 20:00 гра закінчується.", 50, height / 2 + 40);
+  text("5. В лісі зверху є вибір", 50, height / 2 + 60);
+  text("6. При натисканні на 0 ми закінчуємо гру", 50, height / 2 + 80);
+  textAlign(LEFT, BOTTOM);
+  textSize(14);
+  fill(255);
+  text("Натисніть 'F' для повернення", 10, height - 10);
+}
+
+void drawBenches() {
+  drawBench(375, height - 150);
+  drawBench(600, height - 150);
+}
+
+void drawBench(float x, float y) {
+  fill(160, 82, 45);
+  rect(x - 25, y, 50, 10);
+  rect(x - 25, y + 10, 10, 20);
+  rect(x + 15, y + 10, 10, 20);
+}
+
+void drawClassScene() {
+  background(200);
+  fill(255, 100, 100);
+  rect(0, 0, width, height);
+  drawClassroom();
+}
+
+void drawClassroom() {
+  fill(173, 216, 230);
+  rect(200, 50, 200, 100);
+  rect(500, 50, 200, 100);
+  rect(800, 50, 200, 100);
+  fill(255, 220, 150);
+  ellipse(width / 2, 150, 40, 40);
+  fill(0, 0, 0);
+  rect(width / 2 - 20, 170, 40, 60);
+  fill(0, 128, 0);
+  rect(width / 4, 200, width / 2, 100);
+  drawDesks();
+  fill(0);
+  textAlign(CENTER);
+  textSize(30);
+  text("Ви в класі!", 1050, 40);
+  textSize(20);
+  text("Вчителька", width / 2, 250);
+  textSize(16);
+  text("Натисніть 'L', щоб піти геть або 'S', щоб слухати", width / 2, 280);
+  text("Щоб поговорити з однокласником натисніть '1'", 1000, 400);
+}
+
+void drawDesks() {
+  fill(139, 69, 19);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 4; j++) {
+      rect(200 + j * 200, 350 + i * 100, 150, 50);
+    }
+  }
+}
+
+void drawDialogueScene() {
+  background(200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(20);
+  
+  if (dialogueStep == 1) {
+    text("1. Які сьогодні пари?", width / 2, height / 2 - 20);
+    text("2. Як справи?", width / 2, height / 2 + 20);
+  } else if (dialogueStep == 2) {
+    text("Ви: Які сьогодні пари?", width / 2, height / 2 - 20);
+    text("Однокласник: Математика та Українська.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  } else if (dialogueStep == 3) {
+    text("Ви: Як справи?", width / 2, height / 2 - 20);
+    text("Однокласник: Добре. А у тебе?", width / 2, height / 2 + 20);
+    text("1. Добре", width / 2, height / 2 + 60);
+    text("2. Погано", width / 2, height / 2 + 100);
+  } else if (dialogueStep == 4) {
+    text("Ви: Добре.", width / 2, height / 2 - 20);
+    text("Однокласник: Радий чути.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  } else if (dialogueStep == 5) {
+    text("Ви: Погано.", width / 2, height / 2 - 20);
+    text("Однокласник: Співчуваю.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  }
+}
+
+void drawDormitoryScene() {
+  background(200);
+  fill(220);
+  rect(100, 100, 1000, 450);
+  fill(180);
+  rect(100, 550, 1000, 100);
+  
+  fill(135, 206, 235);
+  for (int i = 0; i < 4; i++) {
+    rect(150 + 200 * i, 150, 100, 60);
+  }
+
+  fill(139, 69, 19);
+  rect(1050, 450, 50, 100);
+
+  fill(160, 82, 45);
+  rect(500, 500, 200, 50);
+
+  fill(255, 224, 189);
+  ellipse(200, 600 - 40, 30, 30);
+  fill(23, 34, 100);
+  rect(200 - 10, 600 - 25, 20, 40);
+
+  fill(0);
+  textAlign(CENTER);
+  textSize(30);
+  text("Ви в гуртожитку!", 1080, 30);
+  textSize(20);
+  text("Ого, давно не бачились, поп'ємо кави?", width / 2, height / 2);
+  textSize(16);
+  text("Натисніть '5', щоб піти на каву (50 хвилин)", width / 2, height / 2 + 40);
+  text("Натисніть '7', щоб піти з гуртожитку (10 хвилин)", width / 2, height / 2 + 60);
+}
+
+void drawCafeteriaScene() {
+  background(200);
+  fill(255, 255, 0);
+  rect(0, 0, width, height);
+  drawVendor();
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви в їдальні!", width / 2, height / 2 - 100);
+  textSize(20);
+  text("Натисніть 'E', щоб взаємодіяти з продавцем", width / 2, height / 2 + 20);
+  text("Натисніть 'L', щоб залишити їдальню", width / 2, height / 2 + 40);
+}
+
+void drawVendor() {
+  fill(255, 220, 150);
+  ellipse(600, 300, 40, 40);
+  fill(0, 0, 0);
+  rect(580, 320, 40, 60);
+}
+
+void drawProductChoice() {
+  background(200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Обери продукт:", width / 2, height / 2 - 100);
+  textSize(20);
+  text("1. Булочка (60 хв)", width / 2, height / 2 - 50);
+  text("2. Сік (30 хв)", width / 2, height / 2);
+  text("3. Морозиво (120 хв)", width / 2, height / 2 + 50);
+}
+
+void drawDormitory() {
+  fill(0, 0, 255);
+  rect(50, height - 550, 325, 225);
+  fill(100, 50, 0);
+  triangle(50, height - 550, 50 + 325, height - 550, 225, height - 580);
+  drawDormitoryWindows();
+  fill(100, 50, 0);
+  rect(100, height - 375, 30, 50);
+  fill(255, 255, 255);
+  textSize(18);
+  textAlign(CENTER);
+}
+
+void drawDormitoryWindows() {
+  fill(255);
+  rect(80, height - 510, 30, 30);
+  rect(120, height - 510, 30, 30);
+  rect(80, height - 470, 30, 30);
+  rect(120, height - 470, 30, 30);
+  rect(180, height - 510, 30, 30);
+  rect(220, height - 510, 30, 30);
+  rect(180, height - 470, 30, 30);
+  rect(220, height - 470, 30, 30);
+  rect(280, height - 510, 30, 30);
+  rect(320, height - 510, 30, 30);
+  rect(280, height - 470, 30, 30);
+  rect(320, height - 470, 30, 30);
+}
+
+void drawCollege() {
+  fill(150, 150, 150);
+  rect(750, 100, 250 * 1.25, 200 * 1.25);
+  fill(100, 50, 0);
+  triangle(750, 100, 750 + 250 * 1.25, 100, 750 + 250 * 0.625, 100 - 30);
+  drawCollegeWindows();
+  fill(100, 50, 0);
+  rect(875, 300, 50, 50);
+  fill(255, 255, 255);
+}
+
+void drawCollegeWindows() {
+  fill(255);
+  rect(800, 130, 40, 40);
+  rect(890, 130, 40, 40);
+  rect(800, 180, 40, 40);
+  rect(890, 180, 40, 40);
+  rect(980, 130, 40, 40);
+  rect(980, 180, 40, 40);
+}
+
+void drawCafeteria() {
+  fill(255, 255, 0);
+  rect(800, 500, 300, 150);
+  fill(255);
+  rect(830, 540, 40, 40);
+  rect(920, 540, 40, 40);
+  rect(1010, 540, 40, 40);
+  fill(150, 50, 0);
+  rect(830, 600, 30, 60);
+  fill(0, 0, 255);
+  triangle(800, 500, 1050, 400, 1100, 500);
+
+  fill(255, 255, 0);
+  ellipse(950, 440, 30, 20);
+
+
+  fill(255, 200, 0);
+  ellipse(935, 435, 20, 10);
+  ellipse(965, 435, 20, 10);
+
+  fill(255, 255, 0);
+  ellipse(950, 425, 15, 15);
+
+  fill(0);
+  ellipse(945, 423, 5, 5);
+  ellipse(955, 423, 5, 5);
+
+  fill(255, 100, 0);
+  triangle(950, 420, 958, 418, 950, 416);
+}
+
+void drawPlayer() {  fill(#FAFF00);
+  fill(#FAFF00);
+  rect(playerX, playerY+5, playerWidth/2, playerHeight/2);
+  fill(#00ECFF);
+  ellipse(playerX+5, playerY-3, playerWidth/2+5, playerHeight/2-2);
+  fill(#08FF89);
+  rect(playerX-5, playerY+5, playerWidth/2-5, playerHeight/2+7);
+  fill(#A81FFF);
+  rect(playerX+10, playerY+5, playerWidth/2-5, playerHeight/2+7);
+  fill(#A81FFF);
+  rect(playerX+5, playerY+25, playerWidth/2-5, playerHeight/2+5);
+  fill(#08FF89);
+  rect(playerX, playerY+25, playerWidth/2-5, playerHeight/2+5);
+  }
+
+void drawHUD() {
+  fill(0);
+  textSize(16);
+  textAlign(LEFT);
+  text("Енергія: " + energy, 10, 20);
+  text("Час: " + (timePassed / 60) + ":" + nf(timePassed % 60, 2), 10, 40);
+}
+
+void updateResources() {
+  if (frameCount % 60 == 0) {
+    timePassed++;
+    if (timePassed % 10 == 0) {
+      energy = max(energy - 4, 0);
+    }
+    if (continuousRunning >= 15) {
+      energy = max(energy - 2, 0);
+      continuousRunning = 0;
+    }
+    if (energy <= 20) {
+      gameOver = true;
+    }
+  }
+}
+
+void checkEndOfDay() {
+  if (timePassed >= 1200) { 
+    gameStarted = false; 
+    drawEndScreen();
+  }
+}
+
+void drawEndScreen() {
+  background(0, 100, 200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("День завершено!", width / 2, height / 2 - 20);
+  textSize(16);
+  text("Дякуємо за гру!", width / 2, height / 2 + 20);
+}
+
+void enterClass() {
+  inClass = true;
+  classChoiceMade = false;
+}
+
+void enterCafeteria() {
+  inCafeteria = true;
+  classChoiceMade = false;
+}
+
+void leaveClass() {
+  inClass = false;
+}
+
+void startListeningToTeacher() {
+  loading = true;
+  loadingStartTime = millis();
+}
+
+void listenToTeacher() {
+  classChoiceMade = true;
+}
