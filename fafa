@@ -16,7 +16,15 @@ boolean buyingProduct = false;
 boolean loading = false;
 boolean inInfoScene = false;
 boolean gameOver = false;
+boolean inDialogueScene = false;
+boolean voluntaryGameOver = false;
+int dialogueStep = 0;
 int loadingStartTime;
+
+boolean atSpecialLocation = false;
+boolean atDecisionScene = false;
+boolean atRiverScene = false;
+int riverSceneStartTime;
 
 void setup() {
   size(1200, 650); 
@@ -27,6 +35,10 @@ void setup() {
 void draw() {
   if (gameOver) {
     drawGameOverScreen();
+  } else if (atRiverScene) {
+    drawRiverScene();
+  } else if (atDecisionScene) {
+    drawDecisionScene();
   } else if (!gameStarted) {
     drawMainScreen();
   } else if (loading) {
@@ -43,7 +55,17 @@ void keyPressed() {
     gameStarted = true;
   }
   if (gameStarted) {
-    if (key == 'f') {
+    if (atDecisionScene) {
+      if (key == 'y') {
+        atDecisionScene = false;
+        atRiverScene = true;
+        riverSceneStartTime = millis();
+      } else if (key == 'n') {
+        atDecisionScene = false;
+        playerX = 600;
+        playerY = 300;
+      }
+    } else if (key == 'f') {
       inInfoScene = !inInfoScene;
     } else {
       handleKeyInput();
@@ -52,7 +74,9 @@ void keyPressed() {
 }
 
 void handleKeyInput() {
-  if (inDormitory) {
+  if (inDialogueScene) {
+    handleDialogueInput();
+  } else if (inDormitory) {
     handleDormitoryInput();
   } else if (inClass && !classChoiceMade) {
     handleClassInput();
@@ -60,6 +84,31 @@ void handleKeyInput() {
     handleCafeteriaInput();
   } else {
     handlePlayerMovement();
+  }
+}
+
+void handleDialogueInput() {
+  switch (dialogueStep) {
+    case 1:
+      if (key == '1') {
+        dialogueStep = 2;
+      } else if (key == '2') {
+        dialogueStep = 3;
+      }
+      break;
+    case 2:
+    case 4:
+    case 5:
+      inDialogueScene = false;
+      dialogueStep = 0;
+      break;
+    case 3:
+      if (key == '1') {
+        dialogueStep = 4;
+      } else if (key == '2') {
+        dialogueStep = 5;
+      }
+      break;
   }
 }
 
@@ -86,8 +135,8 @@ void handleClassInput() {
       startListeningToTeacher();
       break;
     case '1':
-      textSize(16);
-      text("Ви: Привіт які в нас сьгодні пари?\nО: Матиматика та Українська", 1000, 500);
+      inDialogueScene = true;
+      dialogueStep = 1;
       break;
   }
 }
@@ -142,7 +191,10 @@ void handlePlayerMovement() {
 }
 
 void checkLocations() {
-  if (playerX > 100 && playerX < 130 && playerY > height - 375 && playerY < height - 325) {
+  if (playerX > 600 && playerX < 650 && playerY > 100 && playerY < 170) {
+    atSpecialLocation = true;
+    atDecisionScene = true;
+  } else if (playerX > 100 && playerX < 130 && playerY > height - 375 && playerY < height - 325) {
     inDormitory = true;
   } else if (playerX > 850 && playerX < 925 && playerY > 300 && playerY < 350) {
     enterClass();
@@ -175,9 +227,24 @@ void drawGameOverScreen() {
   fill(255, 0, 0);
   textAlign(CENTER);
   textSize(32);
-  text("Гра завершена через низький рівень енергії!", width / 2, height / 2);
+  if (voluntaryGameOver) {
+    text("Гру закінчено добровільно!", width / 2, height / 2);
+  } else {
+    text("Гра завершена через низький рівень енергії!", width / 2, height / 2);
+  }
   textSize(16);
-  text("Натисніть 'R', щоб почати знову", width / 2, height / 2 + 40);
+  text("Щоб почати знову перезайдіть", width / 2, height / 2 + 40);
+}
+
+void drawDecisionScene() {
+  background(50, 100, 200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви хочете піти до річки і прогуляти уроки?", width / 2, height / 2 - 60);
+  textSize(16);
+  text("Натисніть 'Y', щоб піти до річки", width / 2, height / 2);
+  text("Натисніть 'N', щоб залишитися", width / 2, height / 2 + 40);
 }
 
 void drawMainScreen() {
@@ -204,7 +271,7 @@ void drawLoadingScreen() {
   fill(255);
   textAlign(CENTER);
   textSize(32);
-  text("Ви слухаєте довгу та нудну пару...", width / 2, height / 2);
+  text("Ви слухаєте довгі та нудні пари...", width / 2, height / 2);
   if (millis() - loadingStartTime >= 10000) {
     loading = false;
     listenToTeacher();
@@ -223,9 +290,26 @@ void drawGameScene() {
 }
 
 void drawTrees() {
-  drawTree(300, height - 180);
-  drawTree(500, height - 160);
-  drawTree(700, height - 190);
+  drawTree(450, 150);
+  drawTree(490, 180);
+  drawTree(520, 120);
+  drawTree(580, 170);
+  drawTree(600, 210);
+  drawTree(630, 110);
+  drawTree(660, 160);
+  drawTree(640, 240);
+  drawTree(600, 280);
+  drawTree(685, 300);
+  drawTree(490, 280);
+  drawTree(520, 320);
+  drawTree(50, 450);
+  drawTree(100, 500);
+  drawTree(150, 550);
+  drawTree(200, 450);
+  drawTree(250, 500);
+  drawTree(300, 550);
+  drawTree(350, 450);
+  drawTree(400, 500);
 }
 
 void drawTree(float x, float y) {
@@ -242,6 +326,24 @@ void drawInfoTable() {
   text("Натисніть 'F' для деталей", 15, 605);
 }
 
+void drawRiverScene() {
+  background(100, 200, 255); // Sky color
+  fill(34, 139, 34);
+  rect(0, height - 150, width, 150); // Grass
+  fill(0, 0, 255);
+  rect(0, height - 100, width, 50); // River
+  fill(255, 255, 0);
+  ellipse(width - 100, 100, 80, 80); // Sun
+  fill(0);
+  textAlign(CENTER);
+  textSize(32);
+  text("Ви гуляєте біля річки...", width / 2, height / 2);
+  
+  if (millis() - riverSceneStartTime >= 10000) {
+    gameOver = true;
+  }
+}
+
 void drawInfoScene() {
   background(50, 100, 200);
   textAlign(CENTER);
@@ -255,6 +357,8 @@ void drawInfoScene() {
   text("2. Щоб поповнити енергію, поїште в їдальні.", 50, height / 2);
   text("3. Щоб відпочити та поговорити з друзякою, зайдіть у гуртожиток.", 50, height / 2 + 20);
   text("4. Всі ваші дії збільшують час при досягнені 20:00 гра закінчується.", 50, height / 2 + 40);
+  text("5. В лісі зверху є вибір", 50, height / 2 + 60);
+  text("6. При натисканні на 0 ми закінчуємо гру", 50, height / 2 + 80);
   textAlign(LEFT, BOTTOM);
   textSize(14);
   fill(255);
@@ -312,6 +416,35 @@ void drawDesks() {
   }
 }
 
+void drawDialogueScene() {
+  background(200);
+  fill(255);
+  textAlign(CENTER);
+  textSize(20);
+  
+  if (dialogueStep == 1) {
+    text("1. Які сьогодні пари?", width / 2, height / 2 - 20);
+    text("2. Як справи?", width / 2, height / 2 + 20);
+  } else if (dialogueStep == 2) {
+    text("Ви: Які сьогодні пари?", width / 2, height / 2 - 20);
+    text("Однокласник: Математика та Українська.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  } else if (dialogueStep == 3) {
+    text("Ви: Як справи?", width / 2, height / 2 - 20);
+    text("Однокласник: Добре. А у тебе?", width / 2, height / 2 + 20);
+    text("1. Добре", width / 2, height / 2 + 60);
+    text("2. Погано", width / 2, height / 2 + 100);
+  } else if (dialogueStep == 4) {
+    text("Ви: Добре.", width / 2, height / 2 - 20);
+    text("Однокласник: Радий чути.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  } else if (dialogueStep == 5) {
+    text("Ви: Погано.", width / 2, height / 2 - 20);
+    text("Однокласник: Співчуваю.", width / 2, height / 2 + 20);
+    text("Натисніть будь-яку клавішу для повернення", width / 2, height / 2 + 60);
+  }
+}
+
 void drawDormitoryScene() {
   background(200);
   // Малюємо кімнату
@@ -339,7 +472,7 @@ void drawDormitoryScene() {
   fill(23, 34, 100); // Колір одягу
   rect(200 - 10, 600 - 25, 20, 40); // Тіло
 
-  fill(255, 255, 0);
+  fill(0);
   textAlign(CENTER);
   textSize(30);
   text("Ви в гуртожитку!", 1080, 30);
@@ -380,7 +513,7 @@ void drawProductChoice() {
   textSize(20);
   text("1. Булочка (60 хв)", width / 2, height / 2 - 50);
   text("2. Сік (30 хв)", width / 2, height / 2);
-  text("3. Морожинно (120 хв)", width / 2, height / 2 + 50);
+  text("3. Морозиво (120 хв)", width / 2, height / 2 + 50);
 }
 
 void drawDormitory() {
@@ -461,10 +594,10 @@ void updateResources() {
   if (frameCount % 60 == 0) {
     timePassed++;
     if (timePassed % 10 == 0) {
-      energy = max(energy - 2, 0);
+      energy = max(energy - 4, 0);
     }
     if (continuousRunning >= 15) {
-      energy = max(energy - 1, 0);
+      energy = max(energy - 2, 0);
       continuousRunning = 0;
     }
     if (energy <= 20) {
@@ -511,5 +644,4 @@ void startListeningToTeacher() {
 
 void listenToTeacher() {
   classChoiceMade = true;
-  // Add logic for teacher's lecture here
 }
